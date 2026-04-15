@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# uv
+.python-version
+
+# Coverage outputs
+.coverage*
+htmlcov/
+
+# Local tooling / meta
+.bedrock/
+.claude/
+CLAUDE.md
+PROGRESS.md
