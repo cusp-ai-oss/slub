@@ -8,8 +8,8 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 from slub.interpreter import InterpreterPolicy, reinterpret
+from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 
 
 class TestIntegration:

@@ -6,13 +6,13 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 from slub.interpreter import (
     Dispatcher,
     Interpreter,
     InterpreterPolicy,
     contains_subjaxprs,
 )
+from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 
 
 class TestDispatcher:

@@ -9,9 +9,8 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 import pytest
-from jax.ad_checkpoint import checkpoint
+from jax import checkpoint
 
-from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 from slub.handlers import (
     ScanSemantics,
     default_scan_handler,
@@ -25,6 +24,7 @@ from slub.interpreter import (
     TracerValue,
     reinterpret,
 )
+from tests.conftest import HandlerFactory, MockContext, create_test_interpreter
 
 
 class TestPrimitiveAndJit:
