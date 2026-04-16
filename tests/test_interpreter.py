@@ -1,3 +1,5 @@
+# Copyright 2024-2026 Cusp AI
+# SPDX-License-Identifier: Apache-2.0
 """Pruned interpreter tests: retain only high-signal behaviors."""
 
 from __future__ import annotations
