@@ -90,7 +90,7 @@ class Uninitialized(ShapeDtypeStruct):
                 dtype,
                 sharding=sharding,
                 weak_type=weak_type,
-                manual_axis_type=mat,
+                manual_axis_type=mat,  # type: ignore[call-arg]
                 is_ref=is_ref,
             )
         except TypeError:
