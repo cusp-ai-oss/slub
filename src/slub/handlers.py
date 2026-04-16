@@ -77,15 +77,23 @@ class Uninitialized(ShapeDtypeStruct):
         dtype = getattr(aval, "dtype")
         if ignore_sharding:
             sharding = None
-            vma = None
+            mat = None
         else:
             sharding = getattr(aval, "sharding", None)
-            vma = getattr(aval, "vma", None)
+            mat = getattr(aval, "manual_axis_type", getattr(aval, "vma", None))
         weak_type = getattr(aval, "weak_type", False)
         is_ref = getattr(aval, "is_ref", False)
-        super().__init__(
-            shape, dtype, sharding=sharding, weak_type=weak_type, vma=vma, is_ref=is_ref
-        )
+        # JAX 0.10 renamed the ShapeDtypeStruct kwarg ``vma`` → ``manual_axis_type``.
+        try:
+            super().__init__(
+                shape, dtype, sharding=sharding, weak_type=weak_type,
+                manual_axis_type=mat, is_ref=is_ref,
+            )
+        except TypeError:
+            super().__init__(
+                shape, dtype, sharding=sharding, weak_type=weak_type,
+                vma=mat, is_ref=is_ref,
+            )
 
 
 def _sentinel_preserving_parent[Context: InterpreterContext](
