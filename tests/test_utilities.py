@@ -1,3 +1,5 @@
+# Copyright 2024-2026 Cusp AI
+# SPDX-License-Identifier: Apache-2.0
 """Minimal utility & structural tests (license retained)."""
 
 from __future__ import annotations
