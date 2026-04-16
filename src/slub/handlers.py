@@ -86,13 +86,21 @@ class Uninitialized(ShapeDtypeStruct):
         # JAX 0.10 renamed the ShapeDtypeStruct kwarg ``vma`` → ``manual_axis_type``.
         try:
             super().__init__(
-                shape, dtype, sharding=sharding, weak_type=weak_type,
-                manual_axis_type=mat, is_ref=is_ref,
+                shape,
+                dtype,
+                sharding=sharding,
+                weak_type=weak_type,
+                manual_axis_type=mat,
+                is_ref=is_ref,
             )
         except TypeError:
             super().__init__(
-                shape, dtype, sharding=sharding, weak_type=weak_type,
-                vma=mat, is_ref=is_ref,
+                shape,
+                dtype,
+                sharding=sharding,
+                weak_type=weak_type,
+                vma=mat,
+                is_ref=is_ref,
             )
 
 
