@@ -403,11 +403,40 @@ def default_shard_map_handler[Context: InterpreterContext](
     *,
     declare_ctx_in_specs: Callable[[Context], Context | PartitionSpec] | None = None,
     declare_ctx_out_specs: Callable[[Context], Context | PartitionSpec] | None = None,
+    reduce_ctx: Callable[[Context], Context] | None = None,
 ) -> HandlerResult[Context]:
+    """Reinterpret a ``shard_map`` equation through ``interpreter``.
+
+    Args:
+        interpreter: The interpreter walking the surrounding jaxpr.
+        ctx: Input context (lives outside the manual axis scope, typically
+            replicated across all shards).
+        eqn: The ``shard_map`` equation being handled.
+        invals: User-data inputs to the equation.
+        declare_ctx_in_specs: Optional. Map the input context tree to the
+            ``in_specs`` shard_map should use for it. Defaults to ``P()``
+            (replicated) for every leaf.
+        declare_ctx_out_specs: Optional. Map the post-body context tree to
+            the ``out_specs`` shard_map should use for it. Defaults to ``P()``
+            (replicated, broadcast across leaves). Note: deriving the tree
+            shape requires re-tracing the body outside the manual axis scope,
+            which fails for bodies that bind manual axes (collectives, pvary,
+            axis_index). Use ``reduce_ctx`` instead in that case.
+        reduce_ctx: Optional. Transform applied to the per-shard post-body
+            context inside the ``shard_map`` body before returning. The
+            natural place to invoke collectives (``all_gather``, ``psum``, …)
+            to combine per-shard data into globally-replicated values, since
+            it executes inside the manual axis scope. When the result is
+            fully replicated, the default ``out_specs=P()`` is satisfied
+            without ``declare_ctx_out_specs``.
+    """
     jaxpr = ClosedJaxpr(eqn.params["jaxpr"], ())
 
     def fn(ctx, *invals) -> tuple[list[Any], Context]:
-        return interpreter(jaxpr, ctx, *invals)
+        outvals, ctx_post = interpreter(jaxpr, ctx, *invals)
+        if reduce_ctx is not None:
+            ctx_post = reduce_ctx(ctx_post)
+        return outvals, ctx_post
 
     if declare_ctx_in_specs is not None:
         ctx_in_specs = declare_ctx_in_specs(jax.tree.map(Uninitialized, ctx))

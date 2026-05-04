@@ -43,6 +43,7 @@ build-backend = "hatchling.build"
 [tool.pytest_env]
 JAX_PLATFORMS = "cpu"
 JAX_ENABLE_X64 = "True"
+XLA_FLAGS = "--xla_force_host_platform_device_count=4"
 
 [project.optional-dependencies]
 test = ["pytest"]
