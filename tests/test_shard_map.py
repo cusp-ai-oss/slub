@@ -9,7 +9,8 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 import pytest
-from jax.sharding import Mesh, PartitionSpec as P
+from jax.sharding import Mesh
+from jax.sharding import PartitionSpec as P
 
 from slub.handlers import default_shard_map_handler
 from slub.interpreter import (
