@@ -133,6 +133,32 @@ class ScanSemantics(Enum):
     RESULT = "result"
 
 
+def _split_scan_inputs(
+    bind_params: dict[str, Any], invals: list[TracerValue]
+) -> tuple[list[TracerValue], list[TracerValue], list[TracerValue]]:
+    """Partition scan inputs across JAX's old and new parameter schemas."""
+    if "ft_in" in bind_params:
+        consts, carry, xs = bind_params["ft_in"].update(invals).unpack()
+        return list(consts), list(carry), list(xs)
+
+    consts, carry, xs = split_sequence(
+        invals, (bind_params["num_consts"], bind_params["num_carry"])
+    )
+    return consts, carry, xs
+
+
+def _split_scan_outputs(
+    bind_params: dict[str, Any], outvals: list[TracerValue]
+) -> tuple[list[TracerValue], list[TracerValue]]:
+    """Partition scan outputs across JAX's old and new parameter schemas."""
+    if "ft_out" in bind_params:
+        carry, results = bind_params["ft_out"].update(outvals).unpack()
+        return list(carry), list(results)
+
+    carry, results = split_sequence(outvals, (bind_params["num_carry"],))
+    return carry, results
+
+
 def _assert_same_tree[PyTree](old: PyTree, new: PyTree):
     old_leaves, old_tree_def = jax.tree.flatten(old)
     new_leaves, new_tree_def = jax.tree.flatten(new)
@@ -160,10 +186,7 @@ def _scan_handler_result[Context: InterpreterContext](
 ) -> HandlerResult[Context]:
     _, bind_params = get_bind_params(eqn)
     jaxpr: ClosedJaxpr = bind_params["jaxpr"]
-    num_consts = bind_params["num_consts"]
-    num_carry = bind_params["num_carry"]
-
-    consts, carry, xs = split_sequence(invals, (num_consts, num_carry))
+    consts, carry, xs = _split_scan_inputs(bind_params, invals)
 
     # Trace to discover child context structure for reconstruction after scan
     _, ctx_out_tree = (
@@ -176,7 +199,7 @@ def _scan_handler_result[Context: InterpreterContext](
 
     def _new_body_fn(carry: list[TracerValue], xs: list[TracerValue]):
         out_flat, ctx_out = interpreter(jaxpr, ctx.push(), *consts, *carry, *xs)
-        carry_out_flat, results_flat = split_sequence(out_flat, (num_carry,))
+        carry_out_flat, results_flat = _split_scan_outputs(bind_params, out_flat)
         # Only return child-level leaves as scan results — parent is constant
         child_leaves = jax.tree.leaves(ctx_out)[n_parent:]
         return carry_out_flat, (child_leaves, results_flat)
@@ -208,10 +231,7 @@ def _scan_handler_carry[Context: InterpreterContext](
 ) -> HandlerResult[Context]:
     _, bind_params = get_bind_params(eqn)
     jaxpr: ClosedJaxpr = bind_params["jaxpr"]
-    num_consts = bind_params["num_consts"]
-    num_carry = bind_params["num_carry"]
-
-    consts, carry, xs = split_sequence(invals, (num_consts, num_carry))
+    consts, carry, xs = _split_scan_inputs(bind_params, invals)
 
     _, ctx_out_tree = (
         jax.jit(partial(interpreter, jaxpr))
@@ -234,7 +254,7 @@ def _scan_handler_carry[Context: InterpreterContext](
             _assert_same_tree(old_ctx, new_ctx)
         except ValueError as e:
             raise ValueError("Scan body modified the context.") from e
-        carry_out_flat, results_flat = split_sequence(out_flat, (num_carry,))
+        carry_out_flat, results_flat = _split_scan_outputs(bind_params, out_flat)
         return (new_ctx, carry_out_flat), results_flat
 
     (ctx_out, carry), results = jax.lax.scan(
@@ -458,7 +478,11 @@ def default_shard_map_handler[Context: InterpreterContext](
         out_specs=(list(eqn.params["out_specs"]), ctx_out_specs),
         in_specs=(ctx_in_specs, *eqn.params["in_specs"]),
         mesh=eqn.params["mesh"],
-        axis_names=eqn.params["manual_axes"],
+        # JAX 0.11 renamed the shard_map primitive parameter while retaining
+        # ``axis_names`` in the public API.
+        axis_names=eqn.params.get(
+            "newly_manual_axes", eqn.params.get("manual_axes", frozenset())
+        ),
         check_vma=eqn.params["check_vma"],
     )(fn)
 
