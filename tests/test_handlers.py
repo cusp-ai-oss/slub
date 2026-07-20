@@ -230,6 +230,46 @@ class TestScan:
         assert jnp.allclose(ys, jnp.array([0, 2, 4, 6]))
         assert "scan" in ctx1.metadata
 
+    @pytest.mark.parametrize("threading", list(ScanSemantics))
+    def test_scan_partitions_consts_carry_and_results(
+        self, handler_factory: HandlerFactory, threading: ScanSemantics
+    ):
+        """Scan schema partitions closed constants, carry, xs, and results."""
+        if threading == ScanSemantics.CARRY:
+            scan_h = handler_factory.create_scan_handler("scan")
+        else:
+            scan_h = handler_factory.create_scan_handler_with_mode(
+                "scan", constant_context_threading=True
+            )
+        interpreter = create_test_interpreter({"scan": scan_h})
+        offsets = jnp.array([10, 20, 30], dtype=jnp.int32)
+        biases = jnp.array([5, 100], dtype=jnp.int32)
+
+        def fn(values: jax.Array):
+            def body(carry, inputs):
+                total, count = carry
+                value, offset = inputs
+                adjusted = value + offset + biases[0]
+                return (total + adjusted, count + 1), (adjusted, total)
+
+            return jax.lax.scan(
+                body,
+                (jnp.int32(0), jnp.int32(0)),
+                (values, offsets),
+            )
+
+        wrapped = reinterpret(fn, interpreter)
+        ctx0 = MockContext((), None, 0, ())
+        ((total, count), (adjusted, prior_totals)), ctx1 = wrapped(
+            ctx0, jnp.array([1, 2, 3], dtype=jnp.int32)
+        )
+
+        assert total == 81
+        assert count == 3
+        assert jnp.array_equal(adjusted, jnp.array([16, 27, 38]))
+        assert jnp.array_equal(prior_totals, jnp.array([0, 16, 43]))
+        assert "scan" in ctx1.metadata
+
 
 class TestWhile:
     def test_basic_while(self, handler_factory: HandlerFactory):
