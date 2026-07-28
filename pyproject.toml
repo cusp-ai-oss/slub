@@ -1,6 +1,6 @@
 [project]
 name = "slub"
-version = "0.1.1"
+version = "0.1.2"
 description = "Minimal JAX interpreter layer for threading custom context through traced computations"
 readme = "README.md"
 authors = [
